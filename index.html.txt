@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>經典貪食蛇：五關大挑戰</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e24;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            color: #4caf50;
+            text-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+        }
+
+        #game-container {
+            display: flex;
+            gap: 20px;
+            background-color: #2a2a35;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        #info-panel {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            width: 220px;
+        }
+
+        .status-box {
+            background-color: #3a3a4c;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 5px solid #4caf50;
+        }
+
+        .status-box h3 {
+            margin: 0 0 5px 0;
+            font-size: 14px;
+            color: #aaa;
+        }
+
+        .status-box p {
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        canvas {
+            background-color: #111;
+            border: 4px solid #4caf50;
+            border-radius: 8px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        #leaderboard {
+            background-color: #3a3a4c;
+            padding: 15px;
+            border-radius: 8px;
+            flex-grow: 1;
+        }
+
+        #leaderboard h3 {
+            margin-top: 0;
+            border-bottom: 2px solid #555;
+            padding-bottom: 5px;
+            color: #ffd700;
+        }
+
+        ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        li {
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        #controls {
+            margin-top: 15px;
+            text-align: center;
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        /* 彈出視窗樣式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .modal-content {
+            background-color: #2a2a35;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 400px;
+            border: 2px solid #4caf50;
+        }
+
+        .modal h2 {
+            margin-top: 0;
+            color: #4caf50;
+        }
+
+        .modal p {
+            white-space: pre-line;
+            line-height: 1.6;
+        }
+
+        .modal input {
+            padding: 10px;
+            width: 80%;
+            margin: 15px 0;
+            border-radius: 5px;
+            border: none;
+            font-size: 16px;
+        }
+
+        .modal button {
+            padding: 10px 20px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .modal button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>貪食蛇：寶石獵人五關卡</h1>
+
+    <div id="game-container">
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+
+        <div id="info-panel">
+            <div>
+                <div class="status-box">
+                    <h3>LEVEL / 關卡</h3>
+                    <p id="level-display">1 / 5</p>
+                </div>
+                <div class="status-box">
+                    <h3>SCORE / 分數</h3>
+                    <p id="score-display">0</p>
+                </div>
+                <div class="status-box">
+                    <h3>TIME / 時間</h3>
+                    <p id="time-display">0.0s</p>
+                </div>
+                <div class="status-box">
+                    <h3>目標寶石剩餘</h3>
+                    <p id="target-display">5</p>
+                </div>
+            </div>
+
+            <div id="leaderboard">
+                <h3>🏆 前五名排行榜</h3>
+                <ol id="leaderboard-list">
+                    <li>暫無資料</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <div id="controls">
+        使用鍵盤方向鍵 <b>↑ ↓ ← →</b> 或 <b>W A S D</b> 控制蛇的方向。
+    </div>
+
+    <div id="scoreModal" class="modal">
+        <div class="modal-content">
+            <h2 id="modal-title">遊戲結束</h2>
+            <p id="modal-desc"></p>
+            <div id="name-input-section">
+                <p>恭喜榮登排行榜！請輸入你的名字：</p>
+                <input type="text" id="player-name" maxlength="10" placeholder="你的名字">
+            </div>
+            <button id="modal-btn" onclick="handleModalSubmit()">確認</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // 遊戲地圖配置
+        const gridSize = 20;
+        const tileCount = canvas.width / gridSize;
+
+        // 遊戲變數
+        let snake = [];
+        let food = { x: 0, y: 0 };
+        let dx = gridSize;
+        let dy = 0;
+        let score = 0;
+        let level = 1;
+        let gemsEatenInLevel = 0;
+        let startTime;
+        let elapsedTime = 0;
+        let gameInterval;
+        let timeInterval;
+        let isGameOver = true;
+
+        // 關卡設定：過關所需的寶石數量與速度(毫秒，越小越快)
+        const levelConfig = {
+            1: { target: 5, speed: 130 },
+            2: { target: 8, speed: 110 },
+            3: { target: 12, speed: 90 },
+            4: { target: 15, speed: 75 },
+            5: { target: 20, speed: 60 }
+        };
+
+        // 初始化
+        window.onload = function() {
+            updateLeaderboardDisplay();
+            showStartModal();
+        };
+
+        // 監聽鍵盤事件
+        document.addEventListener("keydown", changeDirection);
+
+        function changeDirection(event) {
+            if (isGameOver) return;
+            const keyPressed = event.keyCode;
+            
+            // 支援方向鍵與 WASD
+            const GO_UP = keyPressed === 38 || keyPressed === 87;
+            const GO_DOWN = keyPressed === 40 || keyPressed === 83;
+            const GO_LEFT = keyPressed === 37 || keyPressed === 65;
+            const GO_RIGHT = keyPressed === 39 || keyPressed === 68;
+
+            // 防止180度直接倒退死掉
+            if (GO_LEFT && dx === 0) { dx = -gridSize; dy = 0; }
+            if (GO_RIGHT && dx === 0) { dx = gridSize; dy = 0; }
+            if (GO_UP && dy === 0) { dx = 0; dy = -gridSize; }
+            if (GO_DOWN && dy === 0) { dx = 0; dy = gridSize; }
+        }
+
+        function startGame() {
+            snake = [{ x: gridSize * 5, y: gridSize * 5 }];
+            dx = gridSize;
+            dy = 0;
+            score = 0;
+            level = 1;
+            gemsEatenInLevel = 0;
+            elapsedTime = 0;
+            isGameOver = false;
+            
+            startTime = Date.now();
+            
+            document.getElementById("score-display").innerText = score;
+            document.getElementById("level-display").innerText = `${level} / 5`;
+            document.getElementById("target-display").innerText = levelConfig[level].target - gemsEatenInLevel;
+
+            clearInterval(gameInterval);
+            clearInterval(timeInterval);
+            
+            // 啟動計時器
+            timeInterval = setInterval(() => {
+                if (!isGameOver) {
+                    elapsedTime = ((Date.now() - startTime) / 1000).toFixed(1);
+                    document.getElementById("time-display").innerText = elapsedTime + "s";
+                }
+            }, 100);
+
+            generateFood();
+            nextTick();
+        }
+
+        function nextTick() {
+            if (isGameOver) return;
+
+            gameInterval = setTimeout(() => {
+                clearCanvas();
+                drawFood();
+                moveSnake();
+                drawSnake();
+                checkGameOver();
+                
+                if (!isGameOver) {
+                    nextTick();
+                }
+            }, levelConfig[level].speed);
+        }
+
+        function clearCanvas() {
+            ctx.fillStyle = "#111";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function drawSnake() {
+            snake.forEach((part, index) => {
+                ctx.fillStyle = index === 0 ? "#4caf50" : "#81c784";
+                ctx.strokeStyle = "#111";
+                ctx.fillRect(part.x, part.y, gridSize, gridSize);
+                ctx.strokeRect(part.x, part.y, gridSize, gridSize);
+            });
+        }
+
+        function moveSnake() {
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+            snake.unshift(head);
+
+            if (snake[0].x === food.x && snake[0].y === food.y) {
+                score += level * 10; 
+                gemsEatenInLevel++;
+                document.getElementById("score-display").innerText = score;
+                
+                if (gemsEatenInLevel >= levelConfig[level].target) {
+                    advanceLevel();
+                } else {
+                    document.getElementById("target-display").innerText = levelConfig[level].target - gemsEatenInLevel;
+                    generateFood();
+                }
+            } else {
+                snake.pop();
+            }
+        }
+
+        function generateFood() {
+            food.x = Math.floor(Math.random() * tileCount) * gridSize;
+            food.y = Math.floor(Math.random() * tileCount) * gridSize;
+
+            snake.forEach(part => {
+                const hasEaten = part.x === food.x && part.y === food.y;
+                if (hasEaten) generateFood();
+            });
+        }
+
+        function drawFood() {
+            ctx.fillStyle = "#ff5722";
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = "#ff5722";
+            ctx.beginPath();
+            let r = gridSize / 2;
+            ctx.arc(food.x + r, food.y + r, r - 2, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+
+        function advanceLevel() {
+            if (level < 5) {
+                level++;
+                gemsEatenInLevel = 0;
+                document.getElementById("level-display").innerText = `${level} / 5`;
+                document.getElementById("target-display").innerText = levelConfig[level].target;
+                generateFood();
+                
+                ctx.fillStyle = "rgba(76, 175, 80, 0.4)";
+                ctx.fillRect(0,0,canvas.width, canvas.height);
+            } else {
+                endGame(true);
+            }
+        }
+
+        function checkGameOver() {
+            if (snake[0].x < 0 || snake[0].x >= canvas.width || snake[0].y < 0 || snake[0].y >= canvas.height) {
+                endGame(false);
+            }
+
+            for (let i = 1; i < snake.length; i++) {
+                if (snake[0].x === snake[i].x && snake[0].y === snake[i].y) {
+                    endGame(false);
+                }
+            }
+        }
+
+        function endGame(isWin) {
+            isGameOver = true;
+            clearInterval(gameInterval);
+            clearInterval(timeInterval);
+
+            const leaderboard = getLeaderboard();
+            const isTopScore = leaderboard.length < 5 || score > leaderboard[leaderboard.length - 1].score;
+
+            document.getElementById("scoreModal").style.display = "flex";
+            document.getElementById("modal-title").innerText = isWin ? "🎉 恭喜破關全五關！" : "💥 遊戲結束";
+            document.getElementById("modal-desc").innerText = `最終分數: ${score} 分\n總共耗時: ${elapsedTime} 秒`;
+
+            if (isTopScore && score > 0) {
+                document.getElementById("name-input-section").style.display = "block";
+                document.getElementById("modal-btn").innerText = "登錄排行並重新開始";
+            } else {
+                document.getElementById("name-input-section").style.display = "none";
+                document.getElementById("modal-btn").innerText = "再試一次";
+            }
+        }
+
+        function handleModalSubmit() {
+            const leaderboard = getLeaderboard();
+            const isTopScore = leaderboard.length < 5 || score > leaderboard[leaderboard.length - 1].score;
+
+            if (isTopScore && score > 0) {
+                let name = document.getElementById("player-name").value.trim();
+                if (!name) name = "無名英雄";
+                
+                leaderboard.push({ name: name, score: score, time: parseFloat(elapsedTime) });
+                // 分數高優先；分數同則時間短優先
+                leaderboard.sort((a, b) => b.score - a.score || a.time - b.time);
+                if (leaderboard.length > 5) leaderboard.pop();
+                
+                localStorage.setItem("snake_leaderboard", JSON.stringify(leaderboard));
+                updateLeaderboardDisplay();
+            }
+
+            document.getElementById("scoreModal").style.display = "none";
+            document.getElementById("player-name").value = "";
+            startGame();
+        }
+
+        function showStartModal() {
+            document.getElementById("scoreModal").style.display = "flex";
+            document.getElementById("modal-title").innerText = "歡迎來到寶石獵人！";
+            document.getElementById("modal-desc").innerText = "挑戰極速通過 5 個關卡！\n每關需要的寶石會越來越多，蛇的速度也會越來越快。";
+            document.getElementById("name-input-section").style.display = "none";
+            document.getElementById("modal-btn").innerText = "開始遊戲";
+        }
+
+        function getLeaderboard() {
+            const board = localStorage.getItem("snake_leaderboard");
+            return board ? JSON.parse(board) : [];
+        }
+
+        function updateLeaderboardDisplay() {
+            const leaderboard = getLeaderboard();
+            const listEl = document.getElementById("leaderboard-list");
+            listEl.innerHTML = "";
+
+            if (leaderboard.length === 0) {
+                listEl.innerHTML = "<li>暫無資料</li>";
+                return;
+            }
+
+            leaderboard.forEach(run => {
+                const li = document.createElement("li");
+                li.innerHTML = `<b>${run.name}</b>: ${run.score}分 (${run.time}秒)`;
+                listEl.appendChild(li);
+            });
+        }
+    </script>
+</body>
+</html>
